@@ -45,6 +45,7 @@ mobile/config.json
 mobile/decode_build_log.py
 mobile/inspect_build_log.py
 mobile/log.txt
+mobile/build_log.txt
 mobile/new_build_log*.txt
 mobile/latest_build_log.txt
 mobile/f32473e2_log2.txt
