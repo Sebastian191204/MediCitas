@@ -1,0 +1,313 @@
+import React from 'react';
+import {
+  View, Text, StyleSheet, ScrollView,
+  TouchableOpacity, StatusBar, Alert,
+} from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
+
+// ─── Types ────────────────────────────────────────────────────────────────────
+
+type StatusKey = 'Normal' | 'Alto' | 'Bajo' | 'Anormal';
+
+interface Parameter {
+  name: string;
+  range: string;
+  value: string;
+  unit: string;
+  status: StatusKey;
+}
+
+interface ImageFinding {
+  finding: string;
+  result: string;
+  status?: StatusKey;
+}
+
+interface ExamData {
+  name: string;
+  date: string;
+  doctor: string;
+  interpretation: string;
+  parameters?: Parameter[];
+  isImage?: boolean;
+  imageFindings?: ImageFinding[];
+}
+
+// ─── Status badge config ──────────────────────────────────────────────────────
+
+const STATUS_BADGE: Record<StatusKey, { bg: string; text: string; icon: string }> = {
+  Normal:  { bg: '#dcfce7', text: '#16a34a', icon: '—' },
+  Alto:    { bg: '#fff7ed', text: '#ea580c', icon: '↑' },
+  Bajo:    { bg: '#dbeafe', text: '#2563eb', icon: '↓' },
+  Anormal: { bg: '#fee2e2', text: '#dc2626', icon: '!' },
+};
+
+// ─── Detailed results data ────────────────────────────────────────────────────
+
+export const EXAM_DETAILS: Record<string, ExamData> = {
+  '1': {
+    name: 'Hemograma Completo',
+    date: '15 Abr, 2026',
+    doctor: 'Dr. Carlos Rodríguez',
+    interpretation:
+      'Los valores del hemograma se encuentran dentro de los rangos normales. ' +
+      'No se observan alteraciones significativas en las series roja, blanca ni plaquetaria.',
+    parameters: [
+      { name: 'Glóbulos Rojos',   range: '4.5 – 5.5',   value: '4.8',  unit: 'millones/μL', status: 'Normal' },
+      { name: 'Glóbulos Blancos', range: '4.0 – 11.0',  value: '7.2',  unit: 'miles/μL',    status: 'Normal' },
+      { name: 'Hemoglobina',      range: '13.5 – 17.5', value: '14.5', unit: 'g/dL',         status: 'Normal' },
+      { name: 'Hematocrito',      range: '41 – 53',     value: '44',   unit: '%',            status: 'Normal' },
+      { name: 'Plaquetas',        range: '150 – 400',   value: '245',  unit: 'miles/μL',     status: 'Normal' },
+    ],
+  },
+  '2': {
+    name: 'Perfil Lipídico',
+    date: '10 Abr, 2026',
+    doctor: 'Dra. María González',
+    interpretation:
+      'El perfil lipídico muestra valores en su mayoría normales. ' +
+      'Los triglicéridos se encuentran ligeramente elevados. ' +
+      'Se recomienda dieta baja en grasas saturadas y aumentar la actividad física.',
+    parameters: [
+      { name: 'Colesterol Total', range: '< 200',  value: '185', unit: 'mg/dL', status: 'Normal' },
+      { name: 'HDL (Bueno)',      range: '> 40',   value: '55',  unit: 'mg/dL', status: 'Normal' },
+      { name: 'LDL (Malo)',       range: '< 130',  value: '120', unit: 'mg/dL', status: 'Normal' },
+      { name: 'Triglicéridos',    range: '< 150',  value: '165', unit: 'mg/dL', status: 'Alto'   },
+      { name: 'VLDL',             range: '2 – 30', value: '33',  unit: 'mg/dL', status: 'Alto'   },
+    ],
+  },
+  '3': {
+    name: 'Glucosa en Ayunas',
+    date: '5 Abr, 2026',
+    doctor: 'Dr. Carlos Rodríguez',
+    interpretation:
+      'La glucosa en ayunas se encuentra dentro del rango normal. ' +
+      'No se evidencia riesgo de prediabetes ni diabetes. Continuar con hábitos saludables.',
+    parameters: [
+      { name: 'Glucosa basal', range: '70 – 99',    value: '95',  unit: 'mg/dL',    status: 'Normal' },
+      { name: 'Insulina',      range: '2.6 – 24.9', value: '8.4', unit: 'μUI/mL',   status: 'Normal' },
+      { name: 'Índice HOMA',   range: '< 2.5',      value: '1.9', unit: 'unidades',  status: 'Normal' },
+    ],
+  },
+  '5': {
+    name: 'Radiografía de Tórax',
+    date: '28 Mar, 2026',
+    doctor: 'Dr. Luis Martínez',
+    interpretation:
+      'Campos pulmonares con adecuada ventilación bilateral. Silueta cardíaca de tamaño normal. ' +
+      'No se observan consolidaciones ni derrames pleurales. Mediastino centrado. ' +
+      'Hallazgos dentro de límites normales para la edad del paciente.',
+    isImage: true,
+    imageFindings: [
+      { finding: 'Campos pulmonares', result: 'Ventilación adecuada bilateral, sin opacidades',  status: 'Normal' },
+      { finding: 'Silueta cardíaca',  result: 'Tamaño normal, índice cardiotorácico < 0.5',       status: 'Normal' },
+      { finding: 'Pleuras',           result: 'Sin derrame pleural ni engrosamiento',              status: 'Normal' },
+      { finding: 'Mediastino',        result: 'Centrado, sin ensanchamiento significativo',        status: 'Normal' },
+      { finding: 'Estructuras óseas', result: 'Sin lesiones evidentes en parrilla costal',        status: 'Normal' },
+    ],
+  },
+};
+
+// ─── Screen ───────────────────────────────────────────────────────────────────
+
+export default function ExamDetailScreen({ route, navigation }: any) {
+  const { examId, examName, examDate, examDoctor, examStatus } = route.params ?? {};
+
+  const data = EXAM_DETAILS[examId as string];
+
+  const handleDownload = () => {
+    Alert.alert(
+      'Descargar resultado',
+      `El archivo PDF de "${examName ?? data?.name}" estará disponible para descargar próximamente.\n\n(Función de descarga con expo-file-system en roadmap)`,
+      [{ text: 'Entendido' }]
+    );
+  };
+
+  // ── Pending state ──
+  if (examStatus === 'Pendiente') {
+    return (
+      <View style={styles.container}>
+        <StatusBar barStyle="light-content" backgroundColor="#16a34a" />
+        <View style={styles.header}>
+          <View style={styles.headerTop}>
+            <TouchableOpacity style={styles.backBtn} onPress={() => navigation.goBack()}>
+              <Ionicons name="chevron-back" size={20} color="#fff" />
+              <Text style={styles.backTxt}>Volver</Text>
+            </TouchableOpacity>
+          </View>
+          <Text style={styles.examTitle}>{examName}</Text>
+          <Text style={styles.examMeta}>{examDate}  ·  {examDoctor}</Text>
+        </View>
+        <View style={styles.pendingBox}>
+          <View style={styles.pendingIcon}>
+            <Ionicons name="time-outline" size={36} color="#94a3b8" />
+          </View>
+          <Text style={styles.pendingTitle}>Resultados pendientes</Text>
+          <Text style={styles.pendingSub}>
+            Los resultados de este examen aún no están disponibles. Te notificaremos cuando estén listos.
+          </Text>
+        </View>
+      </View>
+    );
+  }
+
+  // ── No data fallback ──
+  if (!data) {
+    return (
+      <View style={styles.container}>
+        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.fallbackBack}>
+          <Ionicons name="chevron-back" size={22} color="#1e293b" />
+          <Text style={{ fontSize: 15, color: '#1e293b' }}>Volver</Text>
+        </TouchableOpacity>
+        <View style={styles.pendingBox}>
+          <Ionicons name="document-outline" size={48} color="#cbd5e1" />
+          <Text style={styles.pendingTitle}>Sin datos disponibles</Text>
+        </View>
+      </View>
+    );
+  }
+
+  // ── Main detail view ──
+  return (
+    <View style={styles.container}>
+      <StatusBar barStyle="light-content" backgroundColor="#16a34a" />
+
+      {/* Header */}
+      <View style={styles.header}>
+        <View style={styles.headerTop}>
+          <TouchableOpacity style={styles.backBtn} onPress={() => navigation.goBack()}>
+            <Ionicons name="chevron-back" size={20} color="#fff" />
+            <Text style={styles.backTxt}>Volver</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.downloadBtn} onPress={handleDownload}>
+            <Ionicons name="download-outline" size={15} color="#fff" />
+            <Text style={styles.downloadTxt}>Descargar</Text>
+          </TouchableOpacity>
+        </View>
+        <Text style={styles.examTitle}>{data.name}</Text>
+        <Text style={styles.examMeta}>{data.date}  ·  {data.doctor}</Text>
+      </View>
+
+      <ScrollView style={styles.body} showsVerticalScrollIndicator={false}>
+
+        {/* ── Radiology: findings list ── */}
+        {data.isImage && data.imageFindings && (
+          <>
+            <Text style={styles.sectionTitle}>Hallazgos radiológicos</Text>
+            {data.imageFindings.map((f, i) => {
+              const st = STATUS_BADGE[f.status ?? 'Normal'];
+              return (
+                <View key={i} style={styles.findingCard}>
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.findingName}>{f.finding}</Text>
+                    <Text style={styles.findingResult}>{f.result}</Text>
+                  </View>
+                  <View style={[styles.statusBadge, { backgroundColor: st.bg }]}>
+                    <Text style={[styles.statusTxt, { color: st.text }]}>
+                      {st.icon} {f.status ?? 'Normal'}
+                    </Text>
+                  </View>
+                </View>
+              );
+            })}
+          </>
+        )}
+
+        {/* ── Lab: parameter cards ── */}
+        {!data.isImage && data.parameters?.map((p, i) => {
+          const st = STATUS_BADGE[p.status];
+          return (
+            <View key={i} style={styles.paramCard}>
+              <View style={styles.paramTop}>
+                <Text style={styles.paramName}>{p.name}</Text>
+                <View style={[styles.statusBadge, { backgroundColor: st.bg }]}>
+                  <Text style={[styles.statusTxt, { color: st.text }]}>
+                    {st.icon} {p.status}
+                  </Text>
+                </View>
+              </View>
+              <Text style={styles.paramRange}>Rango normal: {p.range}</Text>
+              <Text style={styles.paramValue}>
+                {p.value}
+                <Text style={styles.paramUnit}> {p.unit}</Text>
+              </Text>
+            </View>
+          );
+        })}
+
+        {/* ── Interpretación General ── */}
+        <View style={styles.interpretCard}>
+          <Text style={styles.interpretTitle}>Interpretación General</Text>
+          <Text style={styles.interpretTxt}>{data.interpretation}</Text>
+        </View>
+
+        <View style={{ height: 36 }} />
+      </ScrollView>
+    </View>
+  );
+}
+
+// ─── Styles ───────────────────────────────────────────────────────────────────
+
+const styles = StyleSheet.create({
+  container: { flex: 1, backgroundColor: '#f8fafc' },
+
+  // Header
+  header:      { backgroundColor: '#16a34a', paddingTop: 52, paddingHorizontal: 20, paddingBottom: 22 },
+  headerTop:   { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 },
+  backBtn:     { flexDirection: 'row', alignItems: 'center', gap: 4 },
+  backTxt:     { color: '#fff', fontSize: 15, fontWeight: '600' },
+  downloadBtn: {
+    flexDirection: 'row', alignItems: 'center', gap: 6,
+    borderWidth: 1.5, borderColor: 'rgba(255,255,255,0.65)',
+    borderRadius: 20, paddingHorizontal: 14, paddingVertical: 7,
+  },
+  downloadTxt: { color: '#fff', fontSize: 13, fontWeight: '600' },
+  examTitle:   { fontSize: 22, fontWeight: 'bold', color: '#fff', marginBottom: 6 },
+  examMeta:    { fontSize: 13, color: 'rgba(255,255,255,0.80)' },
+
+  // Body
+  body:          { flex: 1, paddingHorizontal: 16 },
+  sectionTitle:  { fontSize: 17, fontWeight: '700', color: '#1e293b', marginTop: 20, marginBottom: 12 },
+
+  // Parameter cards (lab)
+  paramCard:    {
+    backgroundColor: '#fff', borderRadius: 14, padding: 16, marginTop: 12,
+    shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.07, shadowRadius: 6, elevation: 2,
+  },
+  paramTop:     { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 6 },
+  paramName:    { fontSize: 15, fontWeight: '700', color: '#1e293b', flex: 1, marginRight: 10 },
+  paramRange:   { fontSize: 12, color: '#94a3b8', marginBottom: 10 },
+  paramValue:   { fontSize: 32, fontWeight: 'bold', color: '#1e293b' },
+  paramUnit:    { fontSize: 15, fontWeight: '400', color: '#64748b' },
+
+  // Status badge (shared)
+  statusBadge:  { paddingHorizontal: 10, paddingVertical: 5, borderRadius: 8, flexShrink: 0 },
+  statusTxt:    { fontSize: 12, fontWeight: '700' },
+
+  // Finding cards (radiology)
+  findingCard:  {
+    flexDirection: 'row', alignItems: 'center', gap: 12,
+    backgroundColor: '#fff', borderRadius: 14, padding: 14, marginBottom: 10,
+    shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.06, shadowRadius: 4, elevation: 1,
+  },
+  findingName:  { fontSize: 14, fontWeight: '700', color: '#1e293b', marginBottom: 3 },
+  findingResult:{ fontSize: 13, color: '#64748b' },
+
+  // Interpretation
+  interpretCard: {
+    backgroundColor: '#eff6ff', borderRadius: 14, padding: 16, marginTop: 16,
+  },
+  interpretTitle:{ fontSize: 15, fontWeight: '700', color: '#1e40af', marginBottom: 8 },
+  interpretTxt:  { fontSize: 13, color: '#1e40af', lineHeight: 21 },
+
+  // Pending / empty states
+  pendingBox:   { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 36, gap: 14 },
+  pendingIcon:  {
+    width: 80, height: 80, borderRadius: 40, backgroundColor: '#f1f5f9',
+    alignItems: 'center', justifyContent: 'center',
+  },
+  pendingTitle: { fontSize: 20, fontWeight: '700', color: '#1e293b' },
+  pendingSub:   { fontSize: 14, color: '#94a3b8', textAlign: 'center', lineHeight: 22 },
+  fallbackBack: { flexDirection: 'row', alignItems: 'center', padding: 16, paddingTop: 52, gap: 4 },
+});
