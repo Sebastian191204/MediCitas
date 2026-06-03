@@ -4,6 +4,7 @@
   "description": "Medical Appointment Management App - Web & Mobile",
   "private": true,
   "type": "module",
+  "packageManager": "pnpm@8.15.9",
   "scripts": {
     "web:dev": "cd web && npm run dev",
     "web:build": "cd web && npm run build",

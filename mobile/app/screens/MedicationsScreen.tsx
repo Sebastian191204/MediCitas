@@ -1,10 +1,15 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import {
   View, Text, StyleSheet, ScrollView,
-  TouchableOpacity, StatusBar, Alert,
+  TouchableOpacity, StatusBar, Alert, ActivityIndicator,
+  Modal, TextInput, KeyboardAvoidingView, Platform,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
+import { useAppContext } from '../../src/context/AppContext';
+import { insertMedication } from '../../src/lib/db';
+import { supabase } from '../../src/lib/supabase';
+import type { Prescription } from '../../src/context/AppContext';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -14,60 +19,6 @@ interface ScheduleItem {
   time: string;
   taken: boolean;
 }
-
-interface Prescription {
-  id: string;
-  name: string;
-  status: 'Activo' | 'Inactivo';
-  description: string;
-  frequency: string;
-  hours: string;
-  duration: string;
-  doctor: string;
-  date: string;
-  adherence: number; // 0-3
-  color: string;
-}
-
-// ─── Mock Data ────────────────────────────────────────────────────────────────
-
-const INITIAL_SCHEDULE: ScheduleItem[] = [
-  { id: '1', name: 'Losartán 50mg',      time: '8:00 AM',  taken: true  },
-  { id: '2', name: 'Omeprazol 20mg',     time: '8:00 AM',  taken: true  },
-  { id: '3', name: 'Omeprazol 20mg',     time: '8:00 PM',  taken: false },
-  { id: '4', name: 'Atorvastatina 20mg', time: '10:00 PM', taken: false },
-];
-
-const INITIAL_PRESCRIPTIONS: Prescription[] = [
-  {
-    id: '1', name: 'Losartán 50mg', status: 'Activo',
-    description: 'Control de presión arterial',
-    frequency: '1 vez al día', hours: '8:00 AM', duration: 'Continuo',
-    doctor: 'Dra. María González', date: '10 Ene, 2026',
-    adherence: 1, color: '#2563eb',
-  },
-  {
-    id: '2', name: 'Atorvastatina 20mg', status: 'Activo',
-    description: 'Control de colesterol',
-    frequency: '1 vez al día', hours: '10:00 PM', duration: 'Continuo',
-    doctor: 'Dra. María González', date: '10 Ene, 2026',
-    adherence: 2, color: '#2563eb',
-  },
-  {
-    id: '3', name: 'Omeprazol 20mg', status: 'Activo',
-    description: 'Protección gástrica',
-    frequency: '2 veces al día', hours: '8:00 AM, 8:00 PM', duration: '30 días',
-    doctor: 'Dr. Carlos Rodríguez', date: '1 May, 2026',
-    adherence: 2, color: '#2563eb',
-  },
-  {
-    id: '4', name: 'Ibuprofeno 400mg', status: 'Activo',
-    description: 'Antiinflamatorio',
-    frequency: 'Cada 8 horas si hay dolor', hours: 'Según necesidad', duration: '10 días',
-    doctor: 'Dr. Luis Martínez', date: '3 May, 2026',
-    adherence: 1, color: '#2563eb',
-  },
-];
 
 // ─── Sub-components ───────────────────────────────────────────────────────────
 
@@ -103,17 +54,81 @@ const adh = StyleSheet.create({
 // ─── Main Screen ──────────────────────────────────────────────────────────────
 
 export default function MedicationsScreen({ navigation }: any) {
-  const [schedule, setSchedule]           = useState<ScheduleItem[]>(INITIAL_SCHEDULE);
-  const [prescriptions]                   = useState<Prescription[]>(INITIAL_PRESCRIPTIONS);
+  const { medications: prescriptions, loading, reload } = useAppContext();
+
+  // ── Add medication form state ──────────────────────────────────────────────
+  const [showForm, setShowForm]     = useState(false);
+  const [saving, setSaving]         = useState(false);
+  const [formName, setFormName]     = useState('');
+  const [formDesc, setFormDesc]     = useState('');
+  const [formFreq, setFormFreq]     = useState('');
+  const [formHours, setFormHours]   = useState('');
+  const [formDuration, setFormDuration] = useState('Continuo');
+  const [formDoctor, setFormDoctor] = useState('');
+
+  const resetForm = () => {
+    setFormName(''); setFormDesc(''); setFormFreq('');
+    setFormHours(''); setFormDuration('Continuo'); setFormDoctor('');
+  };
+
+  const handleSaveMedication = async () => {
+    if (!formName.trim() || !formFreq.trim() || !formHours.trim() || !formDoctor.trim()) {
+      Alert.alert('Campos requeridos', 'Por favor completa nombre, frecuencia, horarios y médico.');
+      return;
+    }
+    setSaving(true);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.user) return;
+      const today = new Date();
+      const months = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
+      const dateStr = `${today.getDate()} ${months[today.getMonth()]}, ${today.getFullYear()}`;
+      await insertMedication(session.user.id, {
+        name: formName.trim(),
+        description: formDesc.trim(),
+        frequency: formFreq.trim(),
+        hours: formHours.trim(),
+        duration: formDuration.trim() || 'Continuo',
+        doctor: formDoctor.trim(),
+        date: dateStr,
+        status: 'Activo',
+        adherence: 0,
+        color: '#2563eb',
+      });
+      await reload();
+      resetForm();
+      setShowForm(false);
+      Alert.alert('✅ Medicamento agregado', `${formName} fue registrado correctamente.`);
+    } catch (e) {
+      Alert.alert('Error', 'No se pudo guardar el medicamento. Intenta de nuevo.');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  // Derive today's schedule from medication hours
+  const [takenIds, setTakenIds] = useState<Set<string>>(new Set());
+
+  const schedule = useMemo<ScheduleItem[]>(() =>
+    prescriptions
+      .filter(p => p.status === 'Activo')
+      .flatMap(p =>
+        p.hours.split(',').map((h, idx) => ({
+          id: `${p.id}-${idx}`,
+          name: p.name,
+          time: h.trim(),
+          taken: takenIds.has(`${p.id}-${idx}`),
+        }))
+      ),
+    [prescriptions, takenIds]
+  );
 
   const takenCount   = schedule.filter(s => s.taken).length;
   const pendingCount = schedule.filter(s => !s.taken).length;
   const activeCount  = prescriptions.filter(p => p.status === 'Activo').length;
 
   const markTaken = (id: string) => {
-    setSchedule(prev =>
-      prev.map(s => s.id === id ? { ...s, taken: true } : s)
-    );
+    setTakenIds(prev => new Set([...prev, id]));
   };
 
   const handleMarcar = (item: ScheduleItem) => {
@@ -127,13 +142,7 @@ export default function MedicationsScreen({ navigation }: any) {
     );
   };
 
-  const handleAgregar = () => {
-    Alert.alert(
-      'Agregar medicamento',
-      'Esta función te permite registrar un nuevo medicamento recetado.\n\n(Próximamente conectado a Supabase)',
-      [{ text: 'Entendido' }]
-    );
-  };
+  const handleAgregar = () => setShowForm(true);
 
   const handleDetails = (p: Prescription) => {
     Alert.alert(
@@ -154,6 +163,49 @@ export default function MedicationsScreen({ navigation }: any) {
   return (
     <View style={styles.container}>
       <StatusBar barStyle="light-content" backgroundColor="#6d28d9" />
+
+      {/* ── Modal Agregar Medicamento ── */}
+      <Modal visible={showForm} animationType="slide" transparent>
+        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={mf.overlay}>
+          <View style={mf.sheet}>
+            <View style={mf.header}>
+              <Text style={mf.title}>Agregar Medicamento</Text>
+              <TouchableOpacity onPress={() => { resetForm(); setShowForm(false); }}>
+                <Ionicons name="close" size={24} color="#64748b" />
+              </TouchableOpacity>
+            </View>
+
+            <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+              <Text style={mf.label}>Nombre del medicamento *</Text>
+              <TextInput style={mf.input} placeholder="Ej: Losartán 50mg" value={formName} onChangeText={setFormName} />
+
+              <Text style={mf.label}>Indicación / descripción</Text>
+              <TextInput style={mf.input} placeholder="Ej: Control de presión arterial" value={formDesc} onChangeText={setFormDesc} />
+
+              <Text style={mf.label}>Frecuencia *</Text>
+              <TextInput style={mf.input} placeholder="Ej: 1 vez al día" value={formFreq} onChangeText={setFormFreq} />
+
+              <Text style={mf.label}>Horarios * (separados por coma)</Text>
+              <TextInput style={mf.input} placeholder="Ej: 8:00 AM, 8:00 PM" value={formHours} onChangeText={setFormHours} />
+
+              <Text style={mf.label}>Duración</Text>
+              <TextInput style={mf.input} placeholder="Ej: 30 días / Continuo" value={formDuration} onChangeText={setFormDuration} />
+
+              <Text style={mf.label}>Médico que lo recetó *</Text>
+              <TextInput style={mf.input} placeholder="Ej: Dr. Carlos Rodríguez" value={formDoctor} onChangeText={setFormDoctor} />
+
+              <TouchableOpacity
+                style={[mf.saveBtn, saving && { opacity: 0.6 }]}
+                onPress={handleSaveMedication}
+                disabled={saving}
+              >
+                <Text style={mf.saveTxt}>{saving ? 'Guardando...' : 'Guardar Medicamento'}</Text>
+              </TouchableOpacity>
+              <View style={{ height: 24 }} />
+            </ScrollView>
+          </View>
+        </KeyboardAvoidingView>
+      </Modal>
 
       {/* ── Gradient Header ── */}
       <LinearGradient colors={['#6d28d9', '#2563eb']} style={styles.header}>
@@ -188,9 +240,18 @@ export default function MedicationsScreen({ navigation }: any) {
 
       <ScrollView style={styles.body} showsVerticalScrollIndicator={false}>
 
+        {loading && (
+          <ActivityIndicator size="large" color="#6d28d9" style={{ marginTop: 40 }} />
+        )}
+
         {/* ── Horario de Hoy ── */}
-        <Text style={styles.sectionTitle}>Horario de Hoy</Text>
-        <View style={styles.section}>
+        {!loading && <Text style={styles.sectionTitle}>Horario de Hoy</Text>}
+        {!loading && schedule.length === 0 && (
+          <View style={{ padding: 20, alignItems: 'center' }}>
+            <Text style={{ color: '#94a3b8', fontSize: 14 }}>No hay medicamentos registrados hoy</Text>
+          </View>
+        )}
+        {!loading && <View style={styles.section}>
           {schedule.map((item, idx) => (
             <View
               key={item.id}
@@ -234,7 +295,7 @@ export default function MedicationsScreen({ navigation }: any) {
               )}
             </View>
           ))}
-        </View>
+        </View>}
 
         {/* ── Recetas Activas ── */}
         <View style={styles.sectionHeader}>
@@ -407,7 +468,7 @@ const styles = StyleSheet.create({
   },
   remindersTxt: { fontSize: 13, color: '#2563eb', fontWeight: '500' },
 
-  // Tip card
+  // Tip card (dummy to locate end of styles)
   tipCard:  {
     flexDirection: 'row', alignItems: 'flex-start', gap: 14,
     backgroundColor: '#eff6ff', borderRadius: 14, padding: 16, marginTop: 4, marginBottom: 8,
@@ -419,4 +480,25 @@ const styles = StyleSheet.create({
   },
   tipTitle: { fontSize: 14, fontWeight: '700', color: '#1e40af', marginBottom: 4 },
   tipTxt:   { fontSize: 13, color: '#1e40af', lineHeight: 20 },
+});
+
+// ── Modal form styles ─────────────────────────────────────────────────────────
+const mf = StyleSheet.create({
+  overlay:  { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' },
+  sheet:    {
+    backgroundColor: '#fff', borderTopLeftRadius: 24, borderTopRightRadius: 24,
+    padding: 24, maxHeight: '90%',
+  },
+  header:   { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 },
+  title:    { fontSize: 18, fontWeight: '700', color: '#1e293b' },
+  label:    { fontSize: 13, fontWeight: '600', color: '#64748b', marginBottom: 6, marginTop: 14 },
+  input:    {
+    borderWidth: 1.5, borderColor: '#e2e8f0', borderRadius: 10,
+    paddingHorizontal: 14, paddingVertical: 12, fontSize: 15, color: '#1e293b',
+  },
+  saveBtn:  {
+    backgroundColor: '#6d28d9', borderRadius: 12,
+    paddingVertical: 14, alignItems: 'center', marginTop: 24,
+  },
+  saveTxt:  { color: '#fff', fontSize: 16, fontWeight: '700' },
 });

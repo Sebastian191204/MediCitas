@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View, Text, StyleSheet, ScrollView,
   TouchableOpacity, StatusBar, Switch, Alert,
@@ -7,6 +7,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons, MaterialIcons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useAuth } from '@medical-app/shared/hooks/useAuth';
 import { useAppContext } from '../../src/context/AppContext';
+import { fetchProfile, Profile } from '../../src/lib/db';
 
 // ─── Reusable row with icon + label + value + chevron ────────────────────────
 
@@ -36,22 +37,30 @@ function InfoRow({
 // ─── Main Screen ─────────────────────────────────────────────────────────────
 
 export default function ProfileScreen() {
-  const { session, signOut } = useAuth();
-  const { appointments }     = useAppContext();
-
-  const email    = session?.user?.email ?? '';
-  const name     = session?.user?.user_metadata?.full_name ?? email.split('@')[0];
-  const phone    = session?.user?.user_metadata?.phone ?? '+57 300 123 4567';
-  const eps      = session?.user?.user_metadata?.eps  ?? 'EPS Sura';
-  const initials = name.split(' ').map((n: string) => n[0]).join('').toUpperCase().slice(0, 2);
-
+  const { session, signOut }        = useAuth();
+  const { appointments, exams, medications } = useAppContext();
+  const [profile, setProfile]       = useState<Profile | null>(null);
   const [notifEnabled, setNotifEnabled] = useState(true);
 
-  const citasCount   = appointments.length;
-  const examCount    = 8;   // mock — conectar a Supabase luego
-  const recetasCount = 5;   // mock
+  useEffect(() => {
+    if (session?.user?.id) {
+      fetchProfile(session.user.id).then(setProfile);
+    }
+  }, [session?.user?.id]);
 
-  const ALLERGIES = ['Penicilina', 'Mariscos'];
+  const email    = session?.user?.email ?? '';
+  const name     = profile?.full_name ?? session?.user?.user_metadata?.full_name ?? email.split('@')[0];
+  const phone    = profile?.phone ?? session?.user?.user_metadata?.phone ?? 'No registrado';
+  const eps      = profile?.eps  ?? session?.user?.user_metadata?.eps  ?? 'EPS Sura';
+  const bloodType = profile?.blood_type ?? 'O+';
+  const allergies = (profile?.allergies && profile.allergies.length > 0)
+    ? profile.allergies
+    : ['Sin alergias registradas'];
+  const initials = name.split(' ').map((n: string) => n[0]).join('').toUpperCase().slice(0, 2);
+
+  const citasCount   = appointments.length;
+  const examCount    = exams.length;
+  const recetasCount = medications.filter(m => m.status === 'Activo').length;
 
   const handleLogout = () => {
     Alert.alert(
@@ -143,7 +152,7 @@ export default function ProfileScreen() {
               icon={<Ionicons name="water-outline" size={18} color="#dc2626" />}
               iconBg="#fee2e2"
               label="Tipo de sangre"
-              value="O+"
+              value={bloodType}
               last
             />
 
@@ -151,7 +160,7 @@ export default function ProfileScreen() {
             <View style={styles.allergyBlock}>
               <Text style={styles.allergyLabel}>Alergias conocidas</Text>
               <View style={styles.allergyChips}>
-                {ALLERGIES.map(a => (
+                {allergies.map(a => (
                   <View key={a} style={styles.allergyChip}>
                     <Text style={styles.allergyChipTxt}>{a}</Text>
                   </View>

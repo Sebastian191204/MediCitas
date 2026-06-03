@@ -477,9 +477,9 @@ export default function BookAppointmentScreen({ navigation }: any) {
     else setStep(s => s - 1);
   };
 
-  const handleConfirm = () => {
+  const handleConfirm = async () => {
     if (!specialty || !selDate) return;
-    addAppointment({
+    await addAppointment({
       specialty: specialty.name,
       status: 'Confirmada',
       doctor,
@@ -488,7 +488,6 @@ export default function BookAppointmentScreen({ navigation }: any) {
       location: selLoc,
       color: specialty.color,
     });
-    // Navigate to Citas tab
     navigation.navigate('Main', { screen: 'Citas' });
   };
 

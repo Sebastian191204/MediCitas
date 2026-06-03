@@ -4,7 +4,6 @@
     "slug": "medical-appointment",
     "scheme": "medicitas",
     "version": "0.0.1",
-    "entry": "App.tsx",
     "orientation": "portrait",
     "icon": "./assets/favicon.png",
     "userInterfaceStyle": "light",
@@ -45,7 +44,6 @@
         "projectId": "65e7b34c-a948-4bf7-8e94-d495e5386c57"
       }
     },
-    "owner": "johanp19",
-    "entryPoint": "./App.tsx"
+    "owner": "johanp19"
   }
 }

@@ -1,28 +1,58 @@
-import React from 'react';
+import React, { useState, useMemo } from 'react';
 import {
   View, Text, StyleSheet, ScrollView,
-  TouchableOpacity, StatusBar,
+  TouchableOpacity, StatusBar, Alert,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useAuth } from '@medical-app/shared/hooks/useAuth';
 import { useAppContext } from '../../src/context/AppContext';
 
-const MOCK_REMINDERS = [
-  { id: '1', name: 'Losartán 50mg', dose: 'Tomar 1 tableta', time: '8:00 PM' },
-];
-
 export default function DashboardScreen({ navigation }: any) {
-  const { session, signOut } = useAuth();
-  const { appointments } = useAppContext();
-  // Show the 2 most recent upcoming appointments
+  const { session } = useAuth();
+  const { appointments, exams, medications } = useAppContext();
+  const [takenIds, setTakenIds] = useState<Set<string>>(new Set());
+
+  // Upcoming appointments (max 2)
   const upcomingApts = appointments
     .filter(a => a.status === 'Confirmada' || a.status === 'Pendiente')
     .slice(0, 2);
-  const email = session?.user?.email ?? '';
-  const name = session?.user?.user_metadata?.full_name ?? email.split('@')[0];
+
+  // Real counts
+  const newExamsCount   = exams.filter(e => e.status === 'Disponible').length;
+  const activeMedsCount = medications.filter(m => m.status === 'Activo').length;
+
+  // Derive today's reminders from active medications
+  const reminders = useMemo(() =>
+    medications
+      .filter(m => m.status === 'Activo')
+      .flatMap(m =>
+        m.hours.split(',').map((h, idx) => ({
+          id: `${m.id}-${idx}`,
+          name: m.name,
+          dose: m.description || 'Tomar según indicación',
+          time: h.trim(),
+          taken: takenIds.has(`${m.id}-${idx}`),
+        }))
+      ),
+    [medications, takenIds]
+  );
+
+  const handleMarcar = (id: string, name: string) => {
+    Alert.alert(
+      'Marcar como tomado',
+      `¿Confirmás que tomaste ${name}?`,
+      [
+        { text: 'Cancelar', style: 'cancel' },
+        { text: 'Confirmar', onPress: () => setTakenIds(prev => new Set([...prev, id])) },
+      ]
+    );
+  };
+
+  const email    = session?.user?.email ?? '';
+  const name     = session?.user?.user_metadata?.full_name ?? email.split('@')[0];
   const initials = name.split(' ').map((n: string) => n[0]).join('').toUpperCase().slice(0, 2);
-  const eps = session?.user?.user_metadata?.eps ?? 'EPS Sura';
+  const eps      = session?.user?.user_metadata?.eps ?? 'EPS Sura';
 
   return (
     <View style={styles.container}>
@@ -113,9 +143,13 @@ export default function DashboardScreen({ navigation }: any) {
               </View>
               <Text style={styles.quickTitle}>Exámenes</Text>
               <Text style={styles.quickSub}>Ver resultados</Text>
-              <View style={styles.quickBadge}>
-                <Text style={styles.quickBadgeText}>2 nuevos</Text>
-              </View>
+              {newExamsCount > 0 ? (
+                <View style={styles.quickBadge}>
+                  <Text style={styles.quickBadgeText}>{newExamsCount} disponibles</Text>
+                </View>
+              ) : (
+                <Text style={[styles.quickBadgeBlue, { color: '#94a3b8' }]}>Sin resultados</Text>
+              )}
             </TouchableOpacity>
 
             <TouchableOpacity style={styles.quickCard} onPress={() => navigation.navigate('Medications')}>
@@ -124,27 +158,49 @@ export default function DashboardScreen({ navigation }: any) {
               </View>
               <Text style={styles.quickTitle}>Medicamentos</Text>
               <Text style={styles.quickSub}>Recetas activas</Text>
-              <Text style={styles.quickBadgeBlue}>4 recetas</Text>
+              {activeMedsCount > 0 ? (
+                <Text style={styles.quickBadgeBlue}>{activeMedsCount} recetas</Text>
+              ) : (
+                <Text style={[styles.quickBadgeBlue, { color: '#94a3b8' }]}>Sin recetas</Text>
+              )}
             </TouchableOpacity>
           </View>
 
           {/* Recordatorios */}
           <Text style={styles.sectionTitle}>Recordatorios de Hoy</Text>
-          {MOCK_REMINDERS.map((r) => (
-            <View key={r.id} style={styles.reminderCard}>
-              <View style={styles.reminderIcon}>
-                <MaterialCommunityIcons name="pill" size={22} color="#f97316" />
-              </View>
-              <View style={styles.reminderInfo}>
-                <Text style={styles.reminderName}>{r.name}</Text>
-                <Text style={styles.reminderDose}>{r.dose}</Text>
-                <Text style={styles.reminderTime}>Próxima dosis: {r.time}</Text>
-              </View>
-              <TouchableOpacity style={styles.marcarBtn}>
-                <Text style={styles.marcarText}>Marcar</Text>
-              </TouchableOpacity>
+          {reminders.length === 0 ? (
+            <View style={styles.reminderEmpty}>
+              <MaterialCommunityIcons name="pill-off" size={32} color="#cbd5e1" />
+              <Text style={styles.reminderEmptyText}>No tienes medicamentos registrados</Text>
             </View>
-          ))}
+          ) : (
+            reminders.map((r) => (
+              <View key={r.id} style={[styles.reminderCard, r.taken && { opacity: 0.6 }]}>
+                <View style={[styles.reminderIcon, r.taken && { backgroundColor: '#dcfce7' }]}>
+                  {r.taken
+                    ? <Ionicons name="checkmark-circle" size={22} color="#16a34a" />
+                    : <MaterialCommunityIcons name="pill" size={22} color="#f97316" />
+                  }
+                </View>
+                <View style={styles.reminderInfo}>
+                  <Text style={[styles.reminderName, r.taken && { textDecorationLine: 'line-through', color: '#94a3b8' }]}>
+                    {r.name}
+                  </Text>
+                  <Text style={styles.reminderDose}>{r.dose}</Text>
+                  <Text style={styles.reminderTime}>Hora: {r.time}</Text>
+                </View>
+                {!r.taken ? (
+                  <TouchableOpacity style={styles.marcarBtn} onPress={() => handleMarcar(r.id, r.name)}>
+                    <Text style={styles.marcarText}>Marcar</Text>
+                  </TouchableOpacity>
+                ) : (
+                  <View style={styles.tomadoBadge}>
+                    <Text style={styles.tomadoText}>✓ Tomado</Text>
+                  </View>
+                )}
+              </View>
+            ))
+          )}
 
           <View style={{ height: 16 }} />
         </View>
@@ -235,4 +291,8 @@ const styles = StyleSheet.create({
   reminderTime: { fontSize: 12, color: '#f97316', fontWeight: '600', marginTop: 2 },
   marcarBtn: { borderWidth: 1.5, borderColor: '#f97316', borderRadius: 8, paddingHorizontal: 12, paddingVertical: 6 },
   marcarText: { fontSize: 13, color: '#f97316', fontWeight: '600' },
+  tomadoBadge: { backgroundColor: '#dcfce7', borderRadius: 8, paddingHorizontal: 10, paddingVertical: 6 },
+  tomadoText: { fontSize: 12, color: '#16a34a', fontWeight: '600' },
+  reminderEmpty: { alignItems: 'center', paddingVertical: 24, gap: 8 },
+  reminderEmptyText: { fontSize: 14, color: '#94a3b8', textAlign: 'center' },
 });

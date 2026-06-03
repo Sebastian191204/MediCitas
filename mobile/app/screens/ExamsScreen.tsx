@@ -1,40 +1,19 @@
 import React, { useState } from 'react';
 import {
   View, Text, StyleSheet, ScrollView,
-  TouchableOpacity, TextInput, StatusBar, Alert,
+  TouchableOpacity, TextInput, StatusBar, Alert, ActivityIndicator,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useAppContext } from '../../src/context/AppContext';
 
 const FILTERS = ['Todos', 'Sangre', 'Orina', 'Imágenes'];
 
-const MOCK_EXAMS = [
-  {
-    id: '1', name: 'Hemograma Completo',   type: 'Sangre',  status: 'Disponible',
-    date: '15 Abr, 2026', doctor: 'Dr. Carlos Rodríguez',
-  },
-  {
-    id: '2', name: 'Perfil Lipídico',      type: 'Sangre',  status: 'Disponible',
-    date: '10 Abr, 2026', doctor: 'Dra. María González',
-  },
-  {
-    id: '3', name: 'Glucosa en Ayunas',    type: 'Sangre',  status: 'Disponible',
-    date: '5 Abr, 2026',  doctor: 'Dr. Carlos Rodríguez',
-  },
-  {
-    id: '5', name: 'Radiografía de Tórax', type: 'Imagen',  status: 'Disponible',
-    date: '28 Mar, 2026', doctor: 'Dr. Luis Martínez',
-  },
-  {
-    id: '4', name: 'Examen de Orina',      type: 'Orina',   status: 'Pendiente',
-    date: '20 May, 2026', doctor: 'Dra. Ana Ramírez',
-  },
-];
-
 export default function ExamsScreen({ navigation }: any) {
+  const { exams, loading } = useAppContext();
   const [activeFilter, setActiveFilter] = useState('Todos');
   const [search, setSearch] = useState('');
 
-  const filtered = MOCK_EXAMS.filter(e => {
+  const filtered = exams.filter(e => {
     const matchFilter =
       activeFilter === 'Todos' ||
       e.type === activeFilter ||
@@ -44,10 +23,10 @@ export default function ExamsScreen({ navigation }: any) {
     return matchFilter && matchSearch;
   });
 
-  const disponibles = MOCK_EXAMS.filter(e => e.status === 'Disponible').length;
-  const pendientes  = MOCK_EXAMS.filter(e => e.status === 'Pendiente').length;
+  const disponibles = exams.filter(e => e.status === 'Disponible').length;
+  const pendientes  = exams.filter(e => e.status === 'Pendiente').length;
 
-  const handleVerResultados = (exam: typeof MOCK_EXAMS[0]) => {
+  const handleVerResultados = (exam: typeof exams[0]) => {
     navigation.navigate('ExamDetail', {
       examId:     exam.id,
       examName:   exam.name,
@@ -57,7 +36,7 @@ export default function ExamsScreen({ navigation }: any) {
     });
   };
 
-  const handleDownload = (exam: typeof MOCK_EXAMS[0]) => {
+  const handleDownload = (exam: typeof exams[0]) => {
     if (exam.status === 'Pendiente') {
       Alert.alert('No disponible', 'Los resultados de este examen aún están pendientes.');
       return;
@@ -123,7 +102,9 @@ export default function ExamsScreen({ navigation }: any) {
         {/* ── Results ── */}
         <Text style={styles.sectionTitle}>Resultados Recientes</Text>
 
-        {filtered.length === 0 ? (
+        {loading ? (
+          <ActivityIndicator size="large" color="#16a34a" style={{ marginTop: 40 }} />
+        ) : filtered.length === 0 ? (
           <View style={styles.empty}>
             <Ionicons name="document-outline" size={48} color="#cbd5e1" />
             <Text style={styles.emptyTxt}>No se encontraron exámenes</Text>

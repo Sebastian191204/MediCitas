@@ -10,9 +10,11 @@ export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON, {
     autoRefreshToken: true,
     persistSession: true,
     detectSessionInUrl: false,
-    // NOTE: flowType 'pkce' removed — Hermes (React Native JS engine) does NOT
-    // support WebCrypto, so PKCE can't generate a SHA256 challenge.
-    // Implicit flow sends tokens directly in the URL fragment (#access_token=...).
+    flowType: 'pkce',
+    // Hermes has no WebCrypto so PKCE falls back to 'plain' code challenge.
+    // That's fine: Supabase accepts it, and the redirect uses ?code= (query
+    // param) instead of #access_token= (fragment) — so Chrome Custom Tab
+    // CAN intercept it inside openAuthSessionAsync.
   },
 });
 

@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import * as WebBrowser from 'expo-web-browser';
 import * as Linking from 'expo-linking';
+import { makeRedirectUri } from 'expo-auth-session';
 import { supabase } from '../lib/supabase';
 import type { Session } from '@supabase/supabase-js';
 
@@ -85,8 +86,7 @@ export function useAuth() {
         url.includes('access_token') ||
         url.includes('refresh_token') ||
         url.includes('code=')         ||
-        url.includes('auth/callback') ||
-        url.includes('auth.expo.io');
+        url.includes('auth/callback');
       if (isAuthCallback) {
         console.log('[OAuth] processing callback...');
         applyAuthUrl(url).catch(e => setError(e?.message ?? 'OAuth error'));
@@ -140,11 +140,13 @@ export function useAuth() {
   const signInWithGoogle = useCallback(async () => {
     setError(null);
 
-    // Use auth.expo.io as redirectTo (HTTPS → Supabase accepts it).
-    // After Google login, auth.expo.io redirects to exp://...
-    // openAuthSessionAsync monitors for ANY exp:// URL and intercepts it
-    // before auth.expo.io shows its error page.
-    const redirectUri = 'https://auth.expo.io/@johanp19/medical-appointment';
+    // In a Dev Build / production the app registers "medicitas://" natively,
+    // so the OS intercepts the redirect and openAuthSessionAsync gets type:"success".
+    // This does NOT work in Expo Go (which only registers exp://).
+    const redirectUri = makeRedirectUri({
+      scheme: 'medicitas',
+      path: 'auth/callback',
+    });
     console.log('[OAuth] redirectUri →', redirectUri);
 
     try {
