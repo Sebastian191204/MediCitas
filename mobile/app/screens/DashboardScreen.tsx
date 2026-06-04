@@ -1,7 +1,7 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
 import {
   View, Text, StyleSheet, ScrollView,
-  TouchableOpacity, StatusBar, Alert,
+  TouchableOpacity, StatusBar, Alert, Animated, Easing,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
@@ -12,6 +12,26 @@ export default function DashboardScreen({ navigation }: any) {
   const { session } = useAuth();
   const { appointments, exams, medications } = useAppContext();
   const [takenIds, setTakenIds] = useState<Set<string>>(new Set());
+
+  // ── Entrance animations ──────────────────────────────────────────────────
+  const headerAnim = useRef(new Animated.Value(0)).current;
+  const cardsAnim  = useRef(new Animated.Value(0)).current;
+  const quickAnim  = useRef(new Animated.Value(0)).current;
+  const remindAnim = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    Animated.stagger(120, [
+      Animated.timing(headerAnim, { toValue: 1, duration: 400, easing: Easing.out(Easing.quad), useNativeDriver: true }),
+      Animated.timing(cardsAnim,  { toValue: 1, duration: 400, easing: Easing.out(Easing.quad), useNativeDriver: true }),
+      Animated.timing(quickAnim,  { toValue: 1, duration: 400, easing: Easing.out(Easing.quad), useNativeDriver: true }),
+      Animated.timing(remindAnim, { toValue: 1, duration: 400, easing: Easing.out(Easing.quad), useNativeDriver: true }),
+    ]).start();
+  }, []);
+
+  const fadeSlide = (anim: Animated.Value) => ({
+    opacity: anim,
+    transform: [{ translateY: anim.interpolate({ inputRange: [0, 1], outputRange: [20, 0] }) }],
+  });
 
   // Upcoming appointments (max 2)
   const upcomingApts = appointments
@@ -95,6 +115,7 @@ export default function DashboardScreen({ navigation }: any) {
         <View style={styles.body}>
 
           {/* Próximas Citas */}
+          <Animated.View style={fadeSlide(cardsAnim)}>
           <View style={styles.sectionHeader}>
             <Text style={styles.sectionTitle}>Próximas Citas</Text>
             <TouchableOpacity onPress={() => navigation.navigate('Citas')}>
@@ -133,8 +154,10 @@ export default function DashboardScreen({ navigation }: any) {
               <Ionicons name="chevron-forward" size={18} color="#94a3b8" />
             </TouchableOpacity>
           ))}
+          </Animated.View>
 
           {/* Accesos Rápidos */}
+          <Animated.View style={fadeSlide(quickAnim)}>
           <Text style={styles.sectionTitle}>Accesos Rápidos</Text>
           <View style={styles.quickGrid}>
             <TouchableOpacity style={styles.quickCard} onPress={() => navigation.navigate('Exámenes')}>
@@ -165,8 +188,10 @@ export default function DashboardScreen({ navigation }: any) {
               )}
             </TouchableOpacity>
           </View>
+          </Animated.View>
 
           {/* Recordatorios */}
+          <Animated.View style={fadeSlide(remindAnim)}>
           <Text style={styles.sectionTitle}>Recordatorios de Hoy</Text>
           {reminders.length === 0 ? (
             <View style={styles.reminderEmpty}>
@@ -203,6 +228,7 @@ export default function DashboardScreen({ navigation }: any) {
           )}
 
           <View style={{ height: 16 }} />
+          </Animated.View>
         </View>
       </ScrollView>
     </View>

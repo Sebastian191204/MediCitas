@@ -1,8 +1,9 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   View, TextInput, TouchableOpacity, Text, StyleSheet,
-  Alert, ActivityIndicator, ScrollView, StatusBar,
+  Alert, ActivityIndicator, ScrollView, StatusBar, Animated, Easing,
 } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons, MaterialIcons } from '@expo/vector-icons';
 import { useAuth } from '@medical-app/shared/hooks/useAuth';
 import { validateEmail } from '@medical-app/shared/utils';
@@ -14,6 +15,41 @@ export default function LoginScreen({ navigation }: any) {
   const [loading, setLoading]       = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
   const { signIn, signInWithGoogle } = useAuth();
+
+  // ── Animations ──────────────────────────────────────────────────────────────
+  const logoScale   = useRef(new Animated.Value(0.5)).current;
+  const logoOpacity = useRef(new Animated.Value(0)).current;
+  const heartPulse  = useRef(new Animated.Value(1)).current;
+  const cardTransY  = useRef(new Animated.Value(60)).current;
+  const cardOpacity = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    // Logo bounces in
+    Animated.parallel([
+      Animated.spring(logoScale,   { toValue: 1, friction: 5, tension: 80, useNativeDriver: true }),
+      Animated.timing(logoOpacity, { toValue: 1, duration: 400, useNativeDriver: true }),
+    ]).start();
+
+    // Card slides up
+    Animated.sequence([
+      Animated.delay(200),
+      Animated.parallel([
+        Animated.timing(cardTransY,  { toValue: 0,  duration: 500, easing: Easing.out(Easing.quad), useNativeDriver: true }),
+        Animated.timing(cardOpacity, { toValue: 1,  duration: 500, useNativeDriver: true }),
+      ]),
+    ]).start();
+
+    // Heartbeat loop
+    Animated.loop(
+      Animated.sequence([
+        Animated.timing(heartPulse, { toValue: 1.2, duration: 300, easing: Easing.out(Easing.quad), useNativeDriver: true }),
+        Animated.timing(heartPulse, { toValue: 1,   duration: 300, easing: Easing.in(Easing.quad),  useNativeDriver: true }),
+        Animated.timing(heartPulse, { toValue: 1.1, duration: 200, useNativeDriver: true }),
+        Animated.timing(heartPulse, { toValue: 1,   duration: 200, useNativeDriver: true }),
+        Animated.delay(1200),
+      ])
+    ).start();
+  }, []);
 
   const handleLogin = async () => {
     if (!email.trim() || !password.trim()) {
@@ -35,20 +71,33 @@ export default function LoginScreen({ navigation }: any) {
   };
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
-      <StatusBar barStyle="dark-content" backgroundColor="#eff6ff" />
+    <View style={styles.container}>
+      <StatusBar barStyle="light-content" backgroundColor="#1e3a8a" />
+      <LinearGradient
+        colors={['#1e3a8a', '#1e40af', '#0ea5e9']}
+        start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
+        style={styles.gradientBg}
+      />
 
-      {/* Logo */}
-      <View style={styles.logoContainer}>
+      {/* Decorative bg circles */}
+      <View style={styles.bgCircle1} />
+      <View style={styles.bgCircle2} />
+
+    <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
+
+      {/* Logo animado */}
+      <Animated.View style={[styles.logoContainer, { opacity: logoOpacity, transform: [{ scale: logoScale }] }]}>
         <View style={styles.logoCircle}>
-          <Ionicons name="heart" size={34} color="#fff" />
+          <Animated.View style={{ transform: [{ scale: heartPulse }] }}>
+            <Ionicons name="heart" size={38} color="#fff" />
+          </Animated.View>
         </View>
         <Text style={styles.appName}>MediCitas</Text>
         <Text style={styles.tagline}>Tu salud, siempre a tiempo</Text>
-      </View>
+      </Animated.View>
 
-      {/* Card */}
-      <View style={styles.card}>
+      {/* Card animada */}
+      <Animated.View style={[styles.card, { opacity: cardOpacity, transform: [{ translateY: cardTransY }] }]}>
         <Text style={styles.cardTitle}>Iniciar Sesión</Text>
         <Text style={styles.cardSubtitle}>Accede a tu cuenta</Text>
 
@@ -134,26 +183,38 @@ export default function LoginScreen({ navigation }: any) {
             <Text style={styles.registerLink}>Regístrate aquí</Text>
           </Text>
         </TouchableOpacity>
-      </View>
+      </Animated.View>
 
       <Text style={styles.footer}>© 2026 MediCitas. Todos los derechos reservados.</Text>
     </ScrollView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#eff6ff' },
-  content: { padding: 24, paddingBottom: 32 },
-  logoContainer: { alignItems: 'center', marginTop: 32, marginBottom: 28 },
-  logoCircle: {
-    width: 72, height: 72, borderRadius: 36,
-    backgroundColor: '#2563eb', alignItems: 'center', justifyContent: 'center',
-    marginBottom: 12,
-    shadowColor: '#2563eb', shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3, shadowRadius: 8, elevation: 6,
+  container:   { flex: 1 },
+  gradientBg:  { ...StyleSheet.absoluteFillObject },
+  bgCircle1:   {
+    position: 'absolute', width: 350, height: 350, borderRadius: 175,
+    backgroundColor: 'rgba(255,255,255,0.05)', top: -80, right: -80,
   },
-  appName: { fontSize: 28, fontWeight: 'bold', color: '#1e3a8a', marginBottom: 4 },
-  tagline: { fontSize: 14, color: '#64748b' },
+  bgCircle2:   {
+    position: 'absolute', width: 250, height: 250, borderRadius: 125,
+    backgroundColor: 'rgba(255,255,255,0.04)', bottom: 100, left: -60,
+  },
+  content: { padding: 24, paddingBottom: 40 },
+  logoContainer: { alignItems: 'center', marginTop: 52, marginBottom: 28 },
+  logoCircle: {
+    width: 80, height: 80, borderRadius: 40,
+    backgroundColor: 'rgba(255,255,255,0.18)',
+    alignItems: 'center', justifyContent: 'center',
+    marginBottom: 14,
+    borderWidth: 2, borderColor: 'rgba(255,255,255,0.3)',
+    shadowColor: '#fff', shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.15, shadowRadius: 16, elevation: 8,
+  },
+  appName: { fontSize: 32, fontWeight: '800', color: '#fff', marginBottom: 4, letterSpacing: 0.5 },
+  tagline: { fontSize: 14, color: 'rgba(255,255,255,0.75)' },
   card: {
     backgroundColor: '#fff', borderRadius: 20, padding: 24,
     shadowColor: '#000', shadowOffset: { width: 0, height: 2 },

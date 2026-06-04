@@ -1,9 +1,11 @@
-import React from 'react';
+import React, { useRef } from 'react';
 import {
   View, Text, StyleSheet, ScrollView,
-  TouchableOpacity, StatusBar, Alert,
+  TouchableOpacity, StatusBar, Alert, ActivityIndicator,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { File, Paths } from 'expo-file-system';
+import * as Sharing from 'expo-sharing';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -112,15 +114,77 @@ export const EXAM_DETAILS: Record<string, ExamData> = {
 
 export default function ExamDetailScreen({ route, navigation }: any) {
   const { examId, examName, examDate, examDoctor, examStatus } = route.params ?? {};
+  const [downloading, setDownloading] = React.useState(false);
 
   const data = EXAM_DETAILS[examId as string];
 
-  const handleDownload = () => {
-    Alert.alert(
-      'Descargar resultado',
-      `El archivo PDF de "${examName ?? data?.name}" estará disponible para descargar próximamente.\n\n(Función de descarga con expo-file-system en roadmap)`,
-      [{ text: 'Entendido' }]
-    );
+  const handleDownload = async () => {
+    const d = data;
+    const name = examName ?? d?.name ?? 'Examen';
+
+    if (!d) {
+      Alert.alert('Sin datos', 'No hay resultados disponibles para este examen.');
+      return;
+    }
+
+    setDownloading(true);
+    try {
+      // Build text content for the report
+      let content = `=========================================\n`;
+      content += `   RESULTADO DE EXAMEN - MEDICITAS\n`;
+      content += `=========================================\n\n`;
+      content += `Examen:  ${d.name}\n`;
+      content += `Fecha:   ${d.date}\n`;
+      content += `Médico:  ${d.doctor}\n`;
+      content += `-----------------------------------------\n\n`;
+
+      if (d.parameters && d.parameters.length > 0) {
+        content += `PARÁMETROS\n\n`;
+        d.parameters.forEach(p => {
+          content += `${p.name}\n`;
+          content += `  Valor:         ${p.value} ${p.unit}\n`;
+          content += `  Rango normal:  ${p.range}\n`;
+          content += `  Estado:        ${p.status}\n\n`;
+        });
+      }
+
+      if (d.isImage && d.imageFindings) {
+        content += `HALLAZGOS RADIOLÓGICOS\n\n`;
+        d.imageFindings.forEach(f => {
+          content += `${f.finding}:\n`;
+          content += `  ${f.result}\n`;
+          content += `  Estado: ${f.status ?? 'Normal'}\n\n`;
+        });
+      }
+
+      content += `-----------------------------------------\n\n`;
+      content += `INTERPRETACIÓN MÉDICA\n\n${d.interpretation}\n\n`;
+      content += `=========================================\n`;
+      content += `Generado por MediCitas © 2026\n`;
+      content += `Este documento es informativo.\n`;
+      content += `=========================================\n`;
+
+      const safeName = name.replace(/[^a-zA-Z0-9]/g, '_');
+      const fileName = `Resultado_${safeName}_${(examDate ?? '').replace(/[^a-zA-Z0-9]/g, '_')}.txt`;
+      const fileRef = new File(Paths.document, fileName);
+
+      await fileRef.create();
+      await fileRef.write(content);
+
+      const canShare = await Sharing.isAvailableAsync();
+      if (canShare) {
+        await Sharing.shareAsync(fileRef.uri, {
+          mimeType: 'text/plain',
+          dialogTitle: `Resultado de ${name}`,
+        });
+      } else {
+        Alert.alert('Guardado', `El resultado se guardó correctamente en tu dispositivo.`);
+      }
+    } catch (e) {
+      Alert.alert('Error', 'No se pudo generar el archivo. Intenta nuevamente.');
+    } finally {
+      setDownloading(false);
+    }
   };
 
   // ── Pending state ──
@@ -179,9 +243,16 @@ export default function ExamDetailScreen({ route, navigation }: any) {
             <Ionicons name="chevron-back" size={20} color="#fff" />
             <Text style={styles.backTxt}>Volver</Text>
           </TouchableOpacity>
-          <TouchableOpacity style={styles.downloadBtn} onPress={handleDownload}>
-            <Ionicons name="download-outline" size={15} color="#fff" />
-            <Text style={styles.downloadTxt}>Descargar</Text>
+          <TouchableOpacity
+            style={[styles.downloadBtn, downloading && { opacity: 0.6 }]}
+            onPress={handleDownload}
+            disabled={downloading}
+          >
+            {downloading
+              ? <ActivityIndicator size="small" color="#fff" style={{ marginRight: 6 }} />
+              : <Ionicons name="download-outline" size={15} color="#fff" />
+            }
+            <Text style={styles.downloadTxt}>{downloading ? 'Guardando...' : 'Descargar'}</Text>
           </TouchableOpacity>
         </View>
         <Text style={styles.examTitle}>{data.name}</Text>

@@ -1,9 +1,9 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { ActivityIndicator, View } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 
 import { useAuth } from '@medical-app/shared/hooks/useAuth';
 import LoginScreen from './screens/LoginScreen';
@@ -15,6 +15,7 @@ import ProfileScreen from './screens/ProfileScreen';
 import BookAppointmentScreen from './screens/BookAppointmentScreen';
 import MedicationsScreen from './screens/MedicationsScreen';
 import ExamDetailScreen from './screens/ExamDetailScreen';
+import SplashAnimScreen from './screens/SplashAnimScreen';
 
 const Stack = createNativeStackNavigator();
 const Tab   = createBottomTabNavigator();
@@ -45,20 +46,25 @@ function AppTabs() {
         },
         tabBarLabelStyle: { fontSize: 11, fontWeight: '600' },
         tabBarIcon: ({ focused, color }) => {
-          const icons: Record<string, any> = {
-            Inicio:     focused ? 'home'          : 'home-outline',
-            Citas:      focused ? 'calendar'      : 'calendar-outline',
-            'Exámenes': focused ? 'document-text' : 'document-text-outline',
-            Perfil:     focused ? 'person'        : 'person-outline',
-          };
-          return <Ionicons name={icons[route.name]} size={24} color={color} />;
+          if (route.name === 'Inicio')
+            return <Ionicons name={focused ? 'home' : 'home-outline'} size={24} color={color} />;
+          if (route.name === 'Citas')
+            return <Ionicons name={focused ? 'calendar' : 'calendar-outline'} size={24} color={color} />;
+          if (route.name === 'Exámenes')
+            return <Ionicons name={focused ? 'document-text' : 'document-text-outline'} size={24} color={color} />;
+          if (route.name === 'Medicamentos')
+            return <MaterialCommunityIcons name={focused ? 'pill' : 'pill'} size={24} color={color} />;
+          if (route.name === 'Perfil')
+            return <Ionicons name={focused ? 'person' : 'person-outline'} size={24} color={color} />;
+          return null;
         },
       })}
     >
-      <Tab.Screen name="Inicio"   component={DashboardScreen} />
-      <Tab.Screen name="Citas"    component={AppointmentsScreen} />
-      <Tab.Screen name="Exámenes" component={ExamsScreen} />
-      <Tab.Screen name="Perfil"   component={ProfileScreen} />
+      <Tab.Screen name="Inicio"       component={DashboardScreen} />
+      <Tab.Screen name="Citas"        component={AppointmentsScreen} />
+      <Tab.Screen name="Exámenes"     component={ExamsScreen} />
+      <Tab.Screen name="Medicamentos" component={MedicationsScreen} />
+      <Tab.Screen name="Perfil"       component={ProfileScreen} />
     </Tab.Navigator>
   );
 }
@@ -89,6 +95,12 @@ function AppStack() {
 
 export default function RootNavigator() {
   const { session, loading } = useAuth();
+  const [splashDone, setSplashDone] = useState(false);
+
+  // Show animated splash on first launch
+  if (!splashDone) {
+    return <SplashAnimScreen onFinish={() => setSplashDone(true)} />;
+  }
 
   if (loading) {
     return (
