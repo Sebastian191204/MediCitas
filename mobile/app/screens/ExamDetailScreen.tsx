@@ -44,7 +44,7 @@ const STATUS_BADGE: Record<StatusKey, { bg: string; text: string; icon: string }
 
 // ─── Data por NOMBRE (cubre todos los exámenes auto-generados) ───────────────
 
-const EXAM_DATA_BY_NAME: Record<string, Omit<ExamData, 'name' | 'date' | 'doctor'>> = {
+export const EXAM_DATA_BY_NAME: Record<string, Omit<ExamData, 'name' | 'date' | 'doctor'>> = {
   'Hemograma Completo': {
     interpretation: 'Los valores del hemograma se encuentran dentro de los rangos normales. No se observan alteraciones significativas en las series roja, blanca ni plaquetaria.',
     parameters: [

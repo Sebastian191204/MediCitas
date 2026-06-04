@@ -1,10 +1,11 @@
 import React, { useState } from 'react';
 import {
   View, Text, StyleSheet, ScrollView,
-  TouchableOpacity, TextInput, StatusBar, Alert, ActivityIndicator,
+  TouchableOpacity, TextInput, StatusBar, Alert, ActivityIndicator, Share,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useAppContext } from '../../src/context/AppContext';
+import { EXAM_DATA_BY_NAME } from './ExamDetailScreen';
 
 const FILTERS = ['Todos', 'Sangre', 'Orina', 'Imágenes'];
 
@@ -36,16 +37,43 @@ export default function ExamsScreen({ navigation }: any) {
     });
   };
 
-  const handleDownload = (exam: typeof exams[0]) => {
-    if (exam.status === 'Pendiente') {
-      Alert.alert('No disponible', 'Los resultados de este examen aún están pendientes.');
+  const handleDownload = async (exam: typeof exams[0]) => {
+    const examData = EXAM_DATA_BY_NAME[exam.name];
+    if (!examData) {
+      Alert.alert('Sin datos', 'No hay resultados disponibles para este examen.');
       return;
     }
-    Alert.alert(
-      'Descargar resultado',
-      `El archivo PDF de "${exam.name}" estará listo próximamente.\n\n(Función de descarga con expo-file-system en roadmap)`,
-      [{ text: 'Entendido' }]
-    );
+
+    let content = `=========================================\n`;
+    content += `   RESULTADO DE EXAMEN - MEDICITAS\n`;
+    content += `=========================================\n\n`;
+    content += `Examen:  ${exam.name}\n`;
+    content += `Fecha:   ${exam.date}\n`;
+    content += `Medico:  ${exam.doctor}\n`;
+    content += `-----------------------------------------\n\n`;
+
+    if (examData.parameters) {
+      content += `PARAMETROS\n\n`;
+      examData.parameters.forEach(p => {
+        content += `${p.name}\n  Valor: ${p.value} ${p.unit}  |  Rango: ${p.range}  |  Estado: ${p.status}\n\n`;
+      });
+    }
+    if (examData.imageFindings) {
+      content += `HALLAZGOS\n\n`;
+      examData.imageFindings.forEach(f => {
+        content += `${f.finding}: ${f.result} (${f.status ?? 'Normal'})\n\n`;
+      });
+    }
+    content += `-----------------------------------------\n`;
+    content += `INTERPRETACION\n\n${examData.interpretation}\n\n`;
+    content += `Generado por MediCitas 2026\n`;
+    content += `=========================================\n`;
+
+    try {
+      await Share.share({ title: `Resultado ${exam.name}`, message: content });
+    } catch {
+      Alert.alert('Error', 'No se pudo compartir el resultado.');
+    }
   };
 
   return (
@@ -165,14 +193,14 @@ export default function ExamsScreen({ navigation }: any) {
                 <TouchableOpacity
                   style={[
                     styles.downloadBtn,
-                    exam.status === 'Pendiente' && styles.downloadBtnDisabled,
+                    !EXAM_DATA_BY_NAME[exam.name] && styles.downloadBtnDisabled,
                   ]}
                   onPress={() => handleDownload(exam)}
                 >
                   <Ionicons
                     name="download-outline"
                     size={18}
-                    color={exam.status === 'Pendiente' ? '#cbd5e1' : '#64748b'}
+                    color={EXAM_DATA_BY_NAME[exam.name] ? '#16a34a' : '#cbd5e1'}
                   />
                 </TouchableOpacity>
               </View>
