@@ -42,70 +42,145 @@ const STATUS_BADGE: Record<StatusKey, { bg: string; text: string; icon: string }
   Anormal: { bg: '#fee2e2', text: '#dc2626', icon: '!' },
 };
 
-// ─── Detailed results data ────────────────────────────────────────────────────
+// ─── Data por NOMBRE (cubre todos los exámenes auto-generados) ───────────────
 
-export const EXAM_DETAILS: Record<string, ExamData> = {
-  '1': {
-    name: 'Hemograma Completo',
-    date: '15 Abr, 2026',
-    doctor: 'Dr. Carlos Rodríguez',
-    interpretation:
-      'Los valores del hemograma se encuentran dentro de los rangos normales. ' +
-      'No se observan alteraciones significativas en las series roja, blanca ni plaquetaria.',
+const EXAM_DATA_BY_NAME: Record<string, Omit<ExamData, 'name' | 'date' | 'doctor'>> = {
+  'Hemograma Completo': {
+    interpretation: 'Los valores del hemograma se encuentran dentro de los rangos normales. No se observan alteraciones significativas en las series roja, blanca ni plaquetaria.',
     parameters: [
-      { name: 'Glóbulos Rojos',   range: '4.5 – 5.5',   value: '4.8',  unit: 'millones/μL', status: 'Normal' },
-      { name: 'Glóbulos Blancos', range: '4.0 – 11.0',  value: '7.2',  unit: 'miles/μL',    status: 'Normal' },
-      { name: 'Hemoglobina',      range: '13.5 – 17.5', value: '14.5', unit: 'g/dL',         status: 'Normal' },
-      { name: 'Hematocrito',      range: '41 – 53',     value: '44',   unit: '%',            status: 'Normal' },
-      { name: 'Plaquetas',        range: '150 – 400',   value: '245',  unit: 'miles/μL',     status: 'Normal' },
+      { name: 'Glóbulos Rojos',   range: '4.5 – 5.5',   value: '4.8',  unit: 'millones/uL', status: 'Normal' },
+      { name: 'Glóbulos Blancos', range: '4.0 – 11.0',  value: '7.2',  unit: 'miles/uL',    status: 'Normal' },
+      { name: 'Hemoglobina',      range: '13.5 – 17.5', value: '14.5', unit: 'g/dL',        status: 'Normal' },
+      { name: 'Hematocrito',      range: '41 – 53',     value: '44',   unit: '%',           status: 'Normal' },
+      { name: 'Plaquetas',        range: '150 – 400',   value: '245',  unit: 'miles/uL',    status: 'Normal' },
     ],
   },
-  '2': {
-    name: 'Perfil Lipídico',
-    date: '10 Abr, 2026',
-    doctor: 'Dra. María González',
-    interpretation:
-      'El perfil lipídico muestra valores en su mayoría normales. ' +
-      'Los triglicéridos se encuentran ligeramente elevados. ' +
-      'Se recomienda dieta baja en grasas saturadas y aumentar la actividad física.',
+  'Glucosa en Ayunas': {
+    interpretation: 'La glucosa en ayunas se encuentra dentro del rango normal. No se evidencia riesgo de prediabetes ni diabetes. Continuar con hábitos saludables.',
+    parameters: [
+      { name: 'Glucosa basal', range: '70 – 99',    value: '95',  unit: 'mg/dL',   status: 'Normal' },
+      { name: 'Insulina',      range: '2.6 – 24.9', value: '8.4', unit: 'uUI/mL',  status: 'Normal' },
+      { name: 'Indice HOMA',   range: '< 2.5',      value: '1.9', unit: 'unidades',status: 'Normal' },
+    ],
+  },
+  'Perfil Lipídico': {
+    interpretation: 'El perfil lipídico muestra valores en su mayoría normales. Los triglicéridos se encuentran ligeramente elevados. Se recomienda dieta baja en grasas saturadas y actividad física.',
     parameters: [
       { name: 'Colesterol Total', range: '< 200',  value: '185', unit: 'mg/dL', status: 'Normal' },
       { name: 'HDL (Bueno)',      range: '> 40',   value: '55',  unit: 'mg/dL', status: 'Normal' },
       { name: 'LDL (Malo)',       range: '< 130',  value: '120', unit: 'mg/dL', status: 'Normal' },
-      { name: 'Triglicéridos',    range: '< 150',  value: '165', unit: 'mg/dL', status: 'Alto'   },
+      { name: 'Trigliceridos',    range: '< 150',  value: '165', unit: 'mg/dL', status: 'Alto'   },
       { name: 'VLDL',             range: '2 – 30', value: '33',  unit: 'mg/dL', status: 'Alto'   },
     ],
   },
-  '3': {
-    name: 'Glucosa en Ayunas',
-    date: '5 Abr, 2026',
-    doctor: 'Dr. Carlos Rodríguez',
-    interpretation:
-      'La glucosa en ayunas se encuentra dentro del rango normal. ' +
-      'No se evidencia riesgo de prediabetes ni diabetes. Continuar con hábitos saludables.',
-    parameters: [
-      { name: 'Glucosa basal', range: '70 – 99',    value: '95',  unit: 'mg/dL',    status: 'Normal' },
-      { name: 'Insulina',      range: '2.6 – 24.9', value: '8.4', unit: 'μUI/mL',   status: 'Normal' },
-      { name: 'Índice HOMA',   range: '< 2.5',      value: '1.9', unit: 'unidades',  status: 'Normal' },
-    ],
-  },
-  '5': {
-    name: 'Radiografía de Tórax',
-    date: '28 Mar, 2026',
-    doctor: 'Dr. Luis Martínez',
-    interpretation:
-      'Campos pulmonares con adecuada ventilación bilateral. Silueta cardíaca de tamaño normal. ' +
-      'No se observan consolidaciones ni derrames pleurales. Mediastino centrado. ' +
-      'Hallazgos dentro de límites normales para la edad del paciente.',
+  'Electrocardiograma': {
+    interpretation: 'Ritmo sinusal normal. Frecuencia cardiaca de 72 lpm. Eje eléctrico normal. No se evidencian alteraciones del segmento ST ni cambios en la onda T. Intervalo QT dentro de límites normales.',
     isImage: true,
     imageFindings: [
-      { finding: 'Campos pulmonares', result: 'Ventilación adecuada bilateral, sin opacidades',  status: 'Normal' },
-      { finding: 'Silueta cardíaca',  result: 'Tamaño normal, índice cardiotorácico < 0.5',       status: 'Normal' },
-      { finding: 'Pleuras',           result: 'Sin derrame pleural ni engrosamiento',              status: 'Normal' },
-      { finding: 'Mediastino',        result: 'Centrado, sin ensanchamiento significativo',        status: 'Normal' },
-      { finding: 'Estructuras óseas', result: 'Sin lesiones evidentes en parrilla costal',        status: 'Normal' },
+      { finding: 'Ritmo cardiaco',     result: 'Sinusal regular, 72 lpm',              status: 'Normal' },
+      { finding: 'Eje eléctrico',      result: 'Normal, +60 grados',                   status: 'Normal' },
+      { finding: 'Segmento ST',        result: 'Sin elevaciones ni depresiones',        status: 'Normal' },
+      { finding: 'Onda T',             result: 'Morfología normal en todas derivaciones', status: 'Normal' },
+      { finding: 'Intervalo QT',       result: 'QTc 420 ms (normal < 450 ms)',          status: 'Normal' },
     ],
   },
+  'Examen de Piel': {
+    interpretation: 'Piel con textura y coloración normales para la edad del paciente. No se observan lesiones sospechosas, cambios pigmentarios anormales ni signos de patología dermatológica activa.',
+    isImage: true,
+    imageFindings: [
+      { finding: 'Coloracion',       result: 'Homogenea, sin manchas ni eritema generalizado', status: 'Normal' },
+      { finding: 'Textura',          result: 'Normal, sin descamacion ni hiperqueratosis',     status: 'Normal' },
+      { finding: 'Lesiones',         result: 'Sin lesiones malignas ni sospechosas',           status: 'Normal' },
+      { finding: 'Hidratacion',      result: 'Adecuada, sin signos de xerosis',                status: 'Normal' },
+    ],
+  },
+  'Agudeza Visual': {
+    interpretation: 'Agudeza visual bilateral dentro de parámetros normales. No se requiere corrección óptica adicional. Fondo de ojo sin hallazgos patológicos.',
+    isImage: true,
+    imageFindings: [
+      { finding: 'Ojo derecho (OD)',   result: '20/20 - Vision normal sin correccion',    status: 'Normal' },
+      { finding: 'Ojo izquierdo (OI)', result: '20/25 - Vision normal',                   status: 'Normal' },
+      { finding: 'Fondo de ojo',       result: 'Sin edema de papila ni lesiones retinales', status: 'Normal' },
+      { finding: 'Presion intraocular',result: 'OD: 14 mmHg / OI: 15 mmHg (normal)',      status: 'Normal' },
+    ],
+  },
+  'Hemograma Pediátrico': {
+    interpretation: 'Hemograma pediátrico con valores acordes a la edad del paciente. Series hematológicas sin alteraciones. No se evidencia anemia ni proceso infeccioso activo.',
+    parameters: [
+      { name: 'Glóbulos Rojos',   range: '4.0 – 5.2',   value: '4.5',  unit: 'millones/uL', status: 'Normal' },
+      { name: 'Hemoglobina',      range: '11.5 – 15.5', value: '12.8', unit: 'g/dL',        status: 'Normal' },
+      { name: 'Glóbulos Blancos', range: '5.0 – 13.0',  value: '8.1',  unit: 'miles/uL',    status: 'Normal' },
+      { name: 'Plaquetas',        range: '150 – 400',   value: '312',  unit: 'miles/uL',    status: 'Normal' },
+    ],
+  },
+  'Citología Cervical': {
+    interpretation: 'Citología cervical (Papanicolaou) sin alteraciones epiteliales ni signos de lesión intraepitelial. Resultado NEGATIVO para malignidad. Control en 12 meses.',
+    isImage: true,
+    imageFindings: [
+      { finding: 'Calidad de muestra',     result: 'Satisfactoria para evaluacion',            status: 'Normal' },
+      { finding: 'Celulas escamosas',       result: 'Sin lesion intraepitelial ni malignidad',  status: 'Normal' },
+      { finding: 'Celulas glandulares',     result: 'Dentro de limites normales',               status: 'Normal' },
+      { finding: 'Microorganismos',         result: 'Flora normal, sin infeccion evidente',     status: 'Normal' },
+    ],
+  },
+  'Ecografía Pélvica': {
+    interpretation: 'Ecografía pélvica transvaginal sin hallazgos patológicos. Útero y ovarios de morfología y tamaño normales. No se observan masas ni colecciones.',
+    isImage: true,
+    imageFindings: [
+      { finding: 'Utero',          result: 'Tamano y morfologia normal, 7.2 x 4.1 cm',   status: 'Normal' },
+      { finding: 'Ovario derecho', result: 'Normal, sin lesiones quísticas',               status: 'Normal' },
+      { finding: 'Ovario izquierdo',result: 'Normal, foliculo dominante 1.4 cm',          status: 'Normal' },
+      { finding: 'Endometrio',     result: '8 mm, aspecto proliferativo normal',           status: 'Normal' },
+    ],
+  },
+  'Radiografía Ósea': {
+    interpretation: 'Estudio radiológico óseo sin evidencia de fracturas, luxaciones ni lesiones líticas. Densidad ósea conservada. Espacios articulares normales.',
+    isImage: true,
+    imageFindings: [
+      { finding: 'Alineacion osea',    result: 'Correcta, sin desviaciones ni subluxaciones', status: 'Normal' },
+      { finding: 'Densidad osea',      result: 'Conservada, sin signos de osteoporosis',       status: 'Normal' },
+      { finding: 'Espacios articulares', result: 'Normales, sin estrechamiento',               status: 'Normal' },
+      { finding: 'Tejidos blandos',    result: 'Sin edema ni calcificaciones patologicas',     status: 'Normal' },
+    ],
+  },
+  'Examen General': {
+    interpretation: 'Examen general dentro de parámetros normales. No se observan hallazgos que requieran intervención inmediata. Se recomienda control periódico.',
+    parameters: [
+      { name: 'Parametro 1', range: 'Normal', value: 'Normal', unit: '', status: 'Normal' },
+      { name: 'Parametro 2', range: 'Normal', value: 'Normal', unit: '', status: 'Normal' },
+    ],
+  },
+};
+
+// ─── Lookup helper: por ID primero, luego por nombre ─────────────────────────
+
+function resolveExamData(
+  examId: string | undefined,
+  examName: string | undefined,
+  examDate: string | undefined,
+  examDoctor: string | undefined,
+): ExamData | null {
+  // Busca por nombre (cubre todos los exámenes generados dinámicamente)
+  const name = examName ?? '';
+  const byName = EXAM_DATA_BY_NAME[name];
+  if (byName) {
+    return {
+      name,
+      date:   examDate  ?? '',
+      doctor: examDoctor ?? '',
+      ...byName,
+    };
+  }
+  return null;
+}
+
+// ─── Legacy IDs (compatibilidad hacia atrás) ──────────────────────────────────
+
+export const EXAM_DETAILS: Record<string, ExamData> = {
+  '1': { name: 'Hemograma Completo', date: '15 Abr, 2026', doctor: 'Dr. Carlos Rodriguez', ...EXAM_DATA_BY_NAME['Hemograma Completo']! },
+  '2': { name: 'Perfil Lipidico',    date: '10 Abr, 2026', doctor: 'Dra. Maria Gonzalez',  ...EXAM_DATA_BY_NAME['Perfil Lipídico']!   },
+  '3': { name: 'Glucosa en Ayunas',  date: '5 Abr, 2026',  doctor: 'Dr. Carlos Rodriguez', ...EXAM_DATA_BY_NAME['Glucosa en Ayunas']!  },
+  '5': { name: 'Radiografia Osea',   date: '28 Mar, 2026', doctor: 'Dr. Luis Martinez',    ...EXAM_DATA_BY_NAME['Radiografía Ósea']!  },
 };
 
 // ─── Screen ───────────────────────────────────────────────────────────────────
@@ -114,7 +189,11 @@ export default function ExamDetailScreen({ route, navigation }: any) {
   const { examId, examName, examDate, examDoctor, examStatus } = route.params ?? {};
   const [downloading, setDownloading] = React.useState(false);
 
-  const data = EXAM_DETAILS[examId as string];
+  // Busca por nombre primero (exámenes dinámicos), luego por ID (legacy)
+  const data: ExamData | null =
+    resolveExamData(examId, examName, examDate, examDoctor) ??
+    EXAM_DETAILS[examId as string] ??
+    null;
 
   const handleDownload = async () => {
     const d = data;
@@ -173,8 +252,8 @@ export default function ExamDetailScreen({ route, navigation }: any) {
     }
   };
 
-  // ── Pending state ──
-  if (examStatus === 'Pendiente') {
+  // ── Pending state — solo si NO hay datos disponibles ──
+  if (examStatus === 'Pendiente' && !data) {
     return (
       <View style={styles.container}>
         <StatusBar barStyle="light-content" backgroundColor="#16a34a" />

@@ -125,7 +125,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
             type: def.type,
             date: apt.date,
             doctor: apt.doctor,
-            status: 'Pendiente',
+            status: 'Disponible',
           });
           newExams.push(ex);
         } catch { /* ignore individual exam errors */ }
