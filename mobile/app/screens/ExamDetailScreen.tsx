@@ -1,11 +1,9 @@
-import React, { useRef } from 'react';
+import React from 'react';
 import {
   View, Text, StyleSheet, ScrollView,
-  TouchableOpacity, StatusBar, Alert, ActivityIndicator,
+  TouchableOpacity, StatusBar, Alert, ActivityIndicator, Share,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { File, Paths } from 'expo-file-system';
-import * as Sharing from 'expo-sharing';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -164,22 +162,10 @@ export default function ExamDetailScreen({ route, navigation }: any) {
       content += `Este documento es informativo.\n`;
       content += `=========================================\n`;
 
-      const safeName = name.replace(/[^a-zA-Z0-9]/g, '_');
-      const fileName = `Resultado_${safeName}_${(examDate ?? '').replace(/[^a-zA-Z0-9]/g, '_')}.txt`;
-      const fileRef = new File(Paths.document, fileName);
-
-      await fileRef.create();
-      await fileRef.write(content);
-
-      const canShare = await Sharing.isAvailableAsync();
-      if (canShare) {
-        await Sharing.shareAsync(fileRef.uri, {
-          mimeType: 'text/plain',
-          dialogTitle: `Resultado de ${name}`,
-        });
-      } else {
-        Alert.alert('Guardado', `El resultado se guardó correctamente en tu dispositivo.`);
-      }
+      await Share.share({
+        title: `Resultado de ${name}`,
+        message: content,
+      });
     } catch (e) {
       Alert.alert('Error', 'No se pudo generar el archivo. Intenta nuevamente.');
     } finally {
