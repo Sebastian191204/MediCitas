@@ -47,9 +47,14 @@ export default function RegisterScreen({ navigation }: any) {
     setLoading(true);
     try {
       await signUp(email, password, { full_name: fullName, phone, eps });
-      Alert.alert('¡Cuenta creada!', 'Ya puedes iniciar sesión', [
-        { text: 'OK', onPress: () => navigation.navigate('Login') },
-      ]);
+      // Si Supabase auto-autentica (sin verificación de email),
+      // RootNavigator cambia solo a AppStack — no navegar manualmente a Login.
+      // Si requiere verificación, mostramos mensaje sin navegar.
+      Alert.alert(
+        '¡Cuenta creada!',
+        'Tu cuenta ha sido registrada exitosamente. Bienvenido a MediCitas.',
+        [{ text: 'Continuar' }]
+      );
     } catch (error) {
       Alert.alert('Error', error instanceof Error ? error.message : 'Error desconocido');
     } finally {
